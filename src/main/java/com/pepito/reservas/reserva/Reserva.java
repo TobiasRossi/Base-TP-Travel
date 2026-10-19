@@ -1,11 +1,15 @@
 package com.pepito.reservas.reserva;
  
 import com.pepito.reservas.catalogo.ItemCatalogo;
+import com.pepito.reservas.catalogo.SinCupoException;
 import com.pepito.reservas.cliente.Cliente;
+import com.pepito.reservas.procesadorpago.MetodoPago;
+import com.pepito.reservas.procesadorpago.PagoRechazadoException;
 import com.pepito.reservas.reserva.estado.EstadoReserva;
 import com.pepito.reservas.reserva.estado.SolicitudPendiente;
 import com.pepito.reservas.reserva.suscriptor.ReservaObserver;
 import com.pepito.reservas.traslado.MetodoTraslado;
+import com.pepito.reservas.traslado.SinTraslado;
  
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +29,8 @@ public class Reserva implements GestorReservas {
     private final List<ReservaObserver> observadores;
     private EstadoReserva estado;
     private MetodoTraslado metodoTraslado;
+    private double montoServiciosCobrado;
+    private double montoTasasCobrado;
 
     public Reserva(Cliente cliente){
     	this.cliente = cliente;
@@ -32,6 +38,7 @@ public class Reserva implements GestorReservas {
         this.vouchers = new ArrayList<>();
         this.observadores = new ArrayList<>();
         this.estado = new SolicitudPendiente();
+        this.metodoTraslado = new SinTraslado();
     }
     
     /* Operaciones Publicas. Solo delegan en el Estado */
@@ -45,10 +52,15 @@ public class Reserva implements GestorReservas {
     public void quitarItem(ItemCatalogo item) {
         this.estado.quitarItem(this, item);
     }
+
+    @Override
+    public void elegirTraslado(MetodoTraslado metodoTraslado) {
+        this.estado.elegirTraslado(this, metodoTraslado);
+    }
  
     @Override
-    public void confirmar() {
-        this.estado.confirmar(this);
+    public void confirmar(MetodoPago metodoPago) {
+        this.estado.confirmar(this, metodoPago);
     }
 
     @Override
@@ -102,17 +114,50 @@ public class Reserva implements GestorReservas {
         this.items.remove(item);
     }
 
+    public void efectivizarEleccionDeTraslado(MetodoTraslado metodoTraslado) {
+        this.metodoTraslado = metodoTraslado;
+    }
+
+    /*
+     * Todo o nada: si un ítem no tiene Cupo, se liberan los que ya se bloquearon y se relanza.
+     * Cada ítem sabe bloquear su propio Cupo (un Paquete lo propaga a sus partes).
+     */
     public void bloquearCupos() {
-        // TODO: decrementar la disponibilidad de los items (Cupo.bloquear) cuando esté el módulo 2.1.
-        // Si no hay cupo, debe lanzar una excepción ANTES de que el estado haga la transición.
+        List<ItemCatalogo> bloqueados = new ArrayList<>();
+        try {
+            for (ItemCatalogo item : this.items) {
+                item.bloquearCupo();
+                bloqueados.add(item);
+            }
+        } catch (SinCupoException e) {
+            bloqueados.forEach(ItemCatalogo::liberarCupo);
+            throw e;
+        }
     }
  
     public void liberarCupos() {
-        // TODO: incrementar la disponibilidad de los items (Cupo.liberar) cuando esté el módulo 2.1.
+        this.items.forEach(ItemCatalogo::liberarCupo);
+    }
+
+    /*
+     * El medio de pago valida y procesa; la Reserva solo le pide el monto. Si el pago se rechaza, se liberan los Cupos.
+     * Los montos se congelan al cobrar: los reembolsos devuelven lo que el cliente efectivamente pagó.
+     */
+    public void cobrar(MetodoPago metodoPago) {
+        double servicios = this.getTotalServicios();
+        double tasas = this.getTotalTasas();
+        try {
+            metodoPago.procesarPago(servicios + tasas);
+        } catch (PagoRechazadoException e) {
+            this.liberarCupos();
+            throw e;
+        }
+        this.montoServiciosCobrado = servicios;
+        this.montoTasasCobrado = tasas;
     }
 
     public void generarVoucherReembolsoTotal() {
-        double monto = this.getTotalServicios() + this.getTotalTasas();
+        double monto = this.montoServiciosCobrado + this.montoTasasCobrado;
         this.registrarVoucher(new VoucherCredito(monto, "Cancelación en check-in: reembolso de servicios y tasas"));
     }
  
@@ -125,22 +170,36 @@ public class Reserva implements GestorReservas {
         this.vouchers.add(voucher);
     }
 
-    /* Calculo de montos */
+    /* Calculo de montos (actuales: lo que se cobraría si se confirma ahora) */
     
     public double getTotalServicios() {
         return this.items.stream().mapToDouble(ItemCatalogo::getPrecioFinal).sum();
     }
  
     public double getTotalTasas() {
-        return this.metodoTraslado == null ? 0 : this.metodoTraslado.calcularCosto(this);
+        return this.metodoTraslado.calcularCosto(this);
+    }
+
+    public double getTotal() {
+        return this.getTotalServicios() + this.getTotalTasas();
+    }
+
+    /* Montos cobrados al confirmar (base de los reembolsos) */
+
+    public double getMontoServiciosCobrado() {
+        return this.montoServiciosCobrado;
+    }
+
+    public double getMontoTasasCobrado() {
+        return this.montoTasasCobrado;
     }
 
     public double getTotalServiciosNoDisfrutados() {
         // Falta definir el criterio de "servicio disfrutado"
-    	return this.getTotalServicios();
+    	return this.montoServiciosCobrado;
     }
 
-    /* Getters & Setters */
+    /* Getters */
     
     public void serviciosDo(Consumer<ItemCatalogo> bloque) {
         this.items.forEach(bloque);
@@ -164,10 +223,6 @@ public class Reserva implements GestorReservas {
  
     public MetodoTraslado getMetodoTraslado() {
         return this.metodoTraslado;
-    }
- 
-    public void setMetodoTraslado(MetodoTraslado metodoTraslado) {
-        this.metodoTraslado = metodoTraslado;
     }
     
 }

@@ -1,7 +1,9 @@
 package com.pepito.reservas.reserva.estado;
  
 import com.pepito.reservas.catalogo.ItemCatalogo;
+import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.reserva.Reserva;
+import com.pepito.reservas.traslado.MetodoTraslado;
  
 /*
  * State del patrón State. Todas las operaciones se rechazan por default.
@@ -28,7 +30,11 @@ public abstract class EstadoReserva {
         throw this.operacionInvalida("quitar ítem");
     }
  
-    public void confirmar(Reserva reserva) {
+    public void elegirTraslado(Reserva reserva, MetodoTraslado metodoTraslado) {
+        throw this.operacionInvalida("elegir traslado");
+    }
+ 
+    public void confirmar(Reserva reserva, MetodoPago metodoPago) {
         throw this.operacionInvalida("confirmar");
     }
  

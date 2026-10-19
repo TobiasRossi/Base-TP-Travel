@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.pepito.reservas.reserva.ReservaFixture.nueva;
+import static com.pepito.reservas.reserva.ReservaFixture.pago;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -41,7 +42,7 @@ class ReservaObserverTest {
             nuevo[0] = n;
         });
 
-        reserva.confirmar();
+        reserva.confirmar(pago());
 
         assertSame(reserva, recibida[0]);
         assertEquals("SOLICITUD_PENDIENTE", anterior[0].getNombre().name());
@@ -52,7 +53,7 @@ class ReservaObserverTest {
     void seNotificaCadaTransicionEnOrden() {
         reserva.agregarObservador(registrador("A"));
 
-        reserva.confirmar();
+        reserva.confirmar(pago());
         reserva.hacerCheckIn();
         reserva.iniciarViaje();
         reserva.finalizar();
@@ -84,7 +85,7 @@ class ReservaObserverTest {
         reserva.agregarObservador(b);
 
         reserva.quitarObservador(a);
-        reserva.confirmar();
+        reserva.confirmar(pago());
 
         assertEquals(List.of("B:SOLICITUD_PENDIENTE->CONFIRMADA"), eventos);
     }
@@ -93,7 +94,7 @@ class ReservaObserverTest {
     void quitarUnObserverNoRegistradoNoHaceNada() {
         reserva.quitarObservador(registrador("X"));
 
-        reserva.confirmar();
+        reserva.confirmar(pago());
 
         assertTrue(eventos.isEmpty());
     }
@@ -126,7 +127,7 @@ class ReservaObserverTest {
         reserva.agregarObservador(autoQuitable[0]);
         reserva.agregarObservador(registrador("B"));
 
-        reserva.confirmar();
+        reserva.confirmar(pago());
         reserva.hacerCheckIn();
 
         assertEquals(List.of("A", "B:SOLICITUD_PENDIENTE->CONFIRMADA", "B:CONFIRMADA->EN_CHECKIN"), eventos);

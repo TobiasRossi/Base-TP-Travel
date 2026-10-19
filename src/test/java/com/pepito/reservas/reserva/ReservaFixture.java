@@ -2,6 +2,7 @@ package com.pepito.reservas.reserva;
 
 import com.pepito.reservas.catalogo.ItemCatalogo;
 import com.pepito.reservas.cliente.Cliente;
+import com.pepito.reservas.procesadorpago.MetodoPago;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -26,8 +27,13 @@ final class ReservaFixture {
         return spy(new Reserva(mock(Cliente.class)));
     }
 
+    /* Medio de pago que siempre acepta (el mock no lanza excepción). */
+    static MetodoPago pago() {
+        return mock(MetodoPago.class);
+    }
+
     static Reserva confirmada(Reserva r) {
-        r.confirmar();
+        r.confirmar(pago());
         return r;
     }
 

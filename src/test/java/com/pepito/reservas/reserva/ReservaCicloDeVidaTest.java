@@ -1,6 +1,7 @@
 package com.pepito.reservas.reserva;
  
 import com.pepito.reservas.catalogo.ItemCatalogo;
+import com.pepito.reservas.traslado.MetodoTraslado;
 import com.pepito.reservas.reserva.estado.Cancelada;
 import com.pepito.reservas.reserva.estado.Confirmada;
 import com.pepito.reservas.reserva.estado.EnCheckIn;
@@ -28,6 +29,7 @@ import static com.pepito.reservas.reserva.ReservaFixture.enCheckIn;
 import static com.pepito.reservas.reserva.ReservaFixture.enCurso;
 import static com.pepito.reservas.reserva.ReservaFixture.finalizada;
 import static com.pepito.reservas.reserva.ReservaFixture.nueva;
+import static com.pepito.reservas.reserva.ReservaFixture.pago;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -48,7 +50,7 @@ class ReservaCicloDeVidaTest {
     static Stream<Arguments> transicionesValidas() {
         return Stream.of(
                 Arguments.of("pendiente -> confirmar", (Supplier<Reserva>) () -> nueva(),
-                        (Consumer<Reserva>) Reserva::confirmar, NombreEstado.CONFIRMADA),
+                        (Consumer<Reserva>) r -> r.confirmar(pago()), NombreEstado.CONFIRMADA),
                 Arguments.of("pendiente -> cancelar", (Supplier<Reserva>) () -> nueva(),
                         (Consumer<Reserva>) Reserva::cancelar, NombreEstado.CANCELADA),
                 Arguments.of("confirmada -> check-in", (Supplier<Reserva>) () -> confirmada(nueva()),
@@ -81,7 +83,7 @@ class ReservaCicloDeVidaTest {
     void caminoCompletoHastaFinalizada() {
         Reserva reserva = nueva();
  
-        reserva.confirmar();
+        reserva.confirmar(pago());
         reserva.hacerCheckIn();
         reserva.iniciarViaje();
         reserva.finalizar();
@@ -93,12 +95,14 @@ class ReservaCicloDeVidaTest {
     
     static Stream<Arguments> operacionesInvalidas() {
         ItemCatalogo item = mock(ItemCatalogo.class);
+        MetodoTraslado traslado = mock(MetodoTraslado.class);
  
         // Los nombres de operación deben coincidir con los que usa EstadoReserva.
         Map<String, Consumer<Reserva>> operaciones = new LinkedHashMap<>();
         operaciones.put("agregar ítem", r -> r.agregarItem(item));
         operaciones.put("quitar ítem", r -> r.quitarItem(item));
-        operaciones.put("confirmar", Reserva::confirmar);
+        operaciones.put("elegir traslado", r -> r.elegirTraslado(traslado));
+        operaciones.put("confirmar", r -> r.confirmar(pago()));
         operaciones.put("hacer check-in", Reserva::hacerCheckIn);
         operaciones.put("iniciar viaje", Reserva::iniciarViaje);
         operaciones.put("finalizar", Reserva::finalizar);
@@ -113,7 +117,7 @@ class ReservaCicloDeVidaTest {
         estados.put("CANCELADA", () -> cancelada(nueva()));
  
         Map<String, Set<String>> validas = new LinkedHashMap<>();
-        validas.put("SOLICITUD_PENDIENTE", Set.of("agregar ítem", "quitar ítem", "confirmar", "cancelar"));
+        validas.put("SOLICITUD_PENDIENTE", Set.of("agregar ítem", "quitar ítem", "elegir traslado", "confirmar", "cancelar"));
         validas.put("CONFIRMADA", Set.of("hacer check-in", "cancelar"));
         validas.put("EN_CHECKIN", Set.of("iniciar viaje", "cancelar"));
         validas.put("EN_CURSO", Set.of("finalizar", "cancelar"));
@@ -153,7 +157,7 @@ class ReservaCicloDeVidaTest {
     void laExcepcionDeOperacionInvalidaEsUnaExcepcionDeReserva() {
         Reserva reserva = cancelada(nueva());
  
-        assertThrows(ReservaException.class, reserva::confirmar);
+        assertThrows(ReservaException.class, () -> reserva.confirmar(pago()));
     }
 
     /* Estados Concretos - Nombre y Representacion */
