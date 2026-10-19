@@ -6,8 +6,6 @@ import com.pepito.reservas.cliente.Cliente;
 import com.pepito.reservas.procesadorpago.ComprobantePago;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.procesadorpago.PagoRechazadoException;
-import com.pepito.reservas.reserva.estado.EstadoReserva;
-import com.pepito.reservas.reserva.estado.SolicitudPendiente;
 import com.pepito.reservas.reserva.suscriptor.ReservaObserver;
 import com.pepito.reservas.traslado.MetodoTraslado;
 import com.pepito.reservas.traslado.SinTraslado;
@@ -22,7 +20,9 @@ import java.util.function.Consumer;
 
 /*
  * Contexto del Patrón State y Sujeto del Patrón Observer.
- * No decide operaciones válidas, las delega al Estado vigente. 
+ * No decide operaciones válidas, las delega al Estado vigente.
+ * Los efectos que ejecutan los Estados (cambiarEstado, cobrar, bloquearCupos, ...) son package-private:
+ * desde afuera del paquete la única forma de modificar una Reserva son las operaciones de GestorReservas.
  */
 
 public class Reserva implements GestorReservas {
@@ -101,7 +101,7 @@ public class Reserva implements GestorReservas {
     
     /* Cambio de Estado + Observer (Sujeto) - Lo invocan los estados concretos al hacer una transición */
 
-    public void cambiarEstado(EstadoReserva nuevoEstado) {
+    void cambiarEstado(EstadoReserva nuevoEstado) {
         EstadoReserva estadoAnterior = this.estado;
         this.estado = nuevoEstado;
         this.notificar(estadoAnterior, nuevoEstado);
@@ -123,23 +123,30 @@ public class Reserva implements GestorReservas {
     /* Efectos causados por los Estados. La Reserva saber HACER, el Estado CUANDO */
     
     /* El Estado decide CUÁNDO se puede agregar; agregar incluye no aceptar ítems que no pasan su validación (2.1). */
-    public void efectivizarAgregadoDeItem(ItemCatalogo item) {
+    void efectivizarAgregadoDeItem(ItemCatalogo item) {
         if (!item.validate()) {
             throw new ItemInvalidoException("El ítem no pasa su validación y no se puede agregar a la reserva.");
         }
         this.items.add(item);
     }
  
-    public void efectivizarEliminacionDeItem(ItemCatalogo item) {
+    void efectivizarEliminacionDeItem(ItemCatalogo item) {
         this.items.remove(item);
     }
 
-    public void efectivizarEleccionDeTraslado(MetodoTraslado metodoTraslado) {
+    void efectivizarEleccionDeTraslado(MetodoTraslado metodoTraslado) {
         this.metodoTraslado = metodoTraslado;
     }
 
+    /* Un ítem de precio 0 es válido; lo que no se puede confirmar es una reserva sin ítems. */
+    void verificarQueTengaItems() {
+        if (this.items.isEmpty()) {
+            throw new ReservaVaciaException("No se puede confirmar una reserva sin ítems.");
+        }
+    }
+
     /* Lanza TrasladoNoDisponibleException si el traslado elegido no tiene disponibilidad. */
-    public void verificarDisponibilidadTraslado() {
+    void verificarDisponibilidadTraslado() {
         this.metodoTraslado.verificarDisponibilidad(this);
     }
 
@@ -148,7 +155,7 @@ public class Reserva implements GestorReservas {
      * Todo o nada: si un ítem no tiene Cupo, se liberan los que ya se bloquearon y se relanza.
      * Cada ítem sabe bloquear su propio Cupo (un Paquete lo propaga a sus partes).
      */
-    public void bloquearCupos() {
+    void bloquearCupos() {
         List<ItemCatalogo> bloqueados = new ArrayList<>();
         try {
             for (ItemCatalogo item : this.items) {
@@ -161,7 +168,7 @@ public class Reserva implements GestorReservas {
         }
     }
  
-    public void liberarCupos() {
+    void liberarCupos() {
         this.items.forEach(item -> item.liberarCupo(this.cantidadPasajeros));
     }
 
@@ -169,7 +176,7 @@ public class Reserva implements GestorReservas {
      * El medio de pago valida y procesa; la Reserva solo le pide el monto. Si el pago se rechaza, se liberan los Cupos.
      * Montos, comprobante y fecha se congelan en un Cobro: los reembolsos devuelven lo que el cliente efectivamente pagó.
      */
-    public void cobrar(MetodoPago metodoPago) {
+    void cobrar(MetodoPago metodoPago) {
         double servicios = this.getTotalServicios();
         double tasas = this.getTotalTasas();
         ComprobantePago comprobante;
@@ -182,17 +189,17 @@ public class Reserva implements GestorReservas {
         this.cobro = Optional.of(new Cobro(servicios, tasas, comprobante, LocalDateTime.now(this.reloj)));
     }
 
-    public void generarVoucherReembolsoTotal() {
-        double monto = this.cobro.orElseThrow().total();
+    void generarVoucherReembolsoTotal() {
+        double monto = this.cobroRealizado().total();
         this.registrarVoucher(new VoucherCredito(monto, "Cancelación en check-in: reembolso de servicios y tasas"));
     }
  
-    public void generarVoucherReembolsoParcial() {
+    void generarVoucherReembolsoParcial() {
         double monto = this.getTotalServiciosNoDisfrutados();
         this.registrarVoucher(new VoucherCredito(monto, "Cancelación en curso: reembolso de servicios no disfrutados"));
     }
  
-    public void registrarVoucher(VoucherCredito voucher) {
+    void registrarVoucher(VoucherCredito voucher) {
         this.vouchers.add(voucher);
     }
 
@@ -218,7 +225,12 @@ public class Reserva implements GestorReservas {
 
     public double getTotalServiciosNoDisfrutados() {
         // Falta definir el criterio de "servicio disfrutado"
-    	return this.cobro.orElseThrow().montoServicios();
+    	return this.cobroRealizado().montoServicios();
+    }
+
+    /* Los reembolsos solo se generan desde estados posteriores a confirmar, donde el Cobro siempre existe. */
+    private Cobro cobroRealizado() {
+        return this.cobro.orElseThrow(() -> new ReservaException("La reserva todavía no tiene un cobro registrado."));
     }
 
     /* Getters */

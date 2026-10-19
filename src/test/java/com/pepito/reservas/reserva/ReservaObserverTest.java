@@ -1,6 +1,5 @@
 package com.pepito.reservas.reserva;
 
-import com.pepito.reservas.reserva.estado.EstadoReserva;
 import com.pepito.reservas.reserva.suscriptor.ReservaObserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.pepito.reservas.reserva.ReservaFixture.conItem;
 import static com.pepito.reservas.reserva.ReservaFixture.nueva;
 import static com.pepito.reservas.reserva.ReservaFixture.pago;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,7 +22,7 @@ class ReservaObserverTest {
 
     @BeforeEach
     void setUp() {
-        reserva = nueva();
+        reserva = conItem(nueva());
         eventos = new ArrayList<>();
     }
 

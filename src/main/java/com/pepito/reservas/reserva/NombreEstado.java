@@ -1,4 +1,4 @@
-package com.pepito.reservas.reserva.estado;
+package com.pepito.reservas.reserva;
 
 public enum NombreEstado {
     SOLICITUD_PENDIENTE,

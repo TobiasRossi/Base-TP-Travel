@@ -1,6 +1,5 @@
-package com.pepito.reservas.reserva.estado;
+package com.pepito.reservas.reserva;
 
-import com.pepito.reservas.reserva.Reserva;
 
 /*
  * El viaje está en ejecución. Si cancela:
@@ -8,19 +7,19 @@ import com.pepito.reservas.reserva.Reserva;
  * 		- No libera Cupos: parte del Servicio ya se consumió.
  */
 
-public class EnCurso extends EstadoReserva {
+class EnCurso extends EstadoReserva {
 	 
-    public EnCurso() {
+    EnCurso() {
         super(NombreEstado.EN_CURSO);
     }
  
     @Override
-    public void finalizar(Reserva reserva) {
+    void finalizar(Reserva reserva) {
         reserva.cambiarEstado(new Finalizada());
     }
  
     @Override
-    public void cancelar(Reserva reserva) {
+    void cancelar(Reserva reserva) {
         reserva.generarVoucherReembolsoParcial();
         reserva.cambiarEstado(new Cancelada());
     }

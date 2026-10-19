@@ -1,12 +1,12 @@
-package com.pepito.reservas.reserva.estado;
+package com.pepito.reservas.reserva;
  
 /*
  * Estado terminal: no redefine ninguna operación, así que todas se rechazan.
  */
 
-public class Cancelada extends EstadoReserva {
+class Cancelada extends EstadoReserva {
  
-    public Cancelada() {
+    Cancelada() {
         super(NombreEstado.CANCELADA);
     }
 }
