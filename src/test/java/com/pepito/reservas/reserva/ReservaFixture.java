@@ -2,8 +2,14 @@ package com.pepito.reservas.reserva;
 
 import com.pepito.reservas.catalogo.ItemCatalogo;
 import com.pepito.reservas.cliente.Cliente;
+import com.pepito.reservas.procesadorpago.ComprobantePago;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -15,21 +21,30 @@ import static org.mockito.Mockito.when;
 
 final class ReservaFixture {
 
+    /* Reloj fijo: la fecha del cobro es siempre 2026-11-12T10:00. */
+    static final Clock RELOJ = Clock.fixed(Instant.parse("2026-11-12T10:00:00Z"), ZoneOffset.UTC);
+
     private ReservaFixture() {
     }
 
     static Reserva nueva() {
-        return new Reserva(mock(Cliente.class));
+        return nueva(1);
+    }
+
+    static Reserva nueva(int pasajeros) {
+        return new Reserva(mock(Cliente.class), pasajeros, RELOJ);
     }
 
     /* Reserva real "espiada": permite verificar llamadas a bloquearCupos(), liberarCupos(), etc. */
     static Reserva espia() {
-        return spy(new Reserva(mock(Cliente.class)));
+        return spy(nueva());
     }
 
-    /* Medio de pago que siempre acepta (el mock no lanza excepción). */
+    /* Medio de pago que siempre acepta y devuelve un comprobante. */
     static MetodoPago pago() {
-        return mock(MetodoPago.class);
+        MetodoPago pago = mock(MetodoPago.class);
+        when(pago.procesarPago(anyDouble())).thenAnswer(inv -> new ComprobantePago("TX-1", inv.getArgument(0)));
+        return pago;
     }
 
     static Reserva confirmada(Reserva r) {
@@ -63,6 +78,7 @@ final class ReservaFixture {
     static ItemCatalogo item(double precioFinal) {
         ItemCatalogo item = mock(ItemCatalogo.class);
         when(item.getPrecioFinal()).thenReturn(precioFinal);
+        when(item.validate()).thenReturn(true);
         return item;
     }
 }

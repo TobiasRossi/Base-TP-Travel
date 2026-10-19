@@ -8,7 +8,7 @@ package com.pepito.reservas.procesadorpago;
 
 public interface MetodoPago {
 
-    /* Lanza PagoRechazadoException si el pago no se pudo completar. */
-    void procesarPago(double monto);
+    /* Devuelve el comprobante del pago. Lanza PagoRechazadoException si el pago no se pudo completar. */
+    ComprobantePago procesarPago(double monto);
 
 }

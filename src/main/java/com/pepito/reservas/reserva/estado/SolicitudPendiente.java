@@ -31,12 +31,13 @@ public class SolicitudPendiente extends EstadoReserva {
     }
 
     /*
-     * Confirmar = pagar. Primero los Cupos (bloquearlos es reversible sin costo para el cliente),
-     * después el cobro (si falla, la Reserva libera los Cupos). La transición va al final:
-     * si algo falla, la Reserva sigue en SOLICITUD_PENDIENTE y no se notifica nada.
+     * Confirmar = pagar. Primero se verifica el traslado (no tiene efectos), después los Cupos
+     * (bloquearlos es reversible sin costo para el cliente) y por último el cobro (si falla, la Reserva libera los Cupos).
+     * La transición va al final: si algo falla, la Reserva sigue en SOLICITUD_PENDIENTE y no se notifica nada.
      */
     @Override
     public void confirmar(Reserva reserva, MetodoPago metodoPago) {
+        reserva.verificarDisponibilidadTraslado();
         reserva.bloquearCupos();
         reserva.cobrar(metodoPago);
         reserva.cambiarEstado(new Confirmada());
