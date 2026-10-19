@@ -128,8 +128,8 @@ class ReservaCicloDeVidaTest {
                                                                        String operacion, Consumer<Reserva> accion) {
         Reserva reserva = origen.get();
  
-        MetodoInvalidoException ex =
-                assertThrows(MetodoInvalidoException.class, () -> accion.accept(reserva));
+        OperacionInvalidaException ex =
+                assertThrows(OperacionInvalidaException.class, () -> accion.accept(reserva));
  
         assertEquals(estado, ex.getEstado());
         assertEquals(operacion, ex.getOperacion());
@@ -140,7 +140,7 @@ class ReservaCicloDeVidaTest {
     void elMensajeDeLaExcepcionIndicaOperacionYEstado() {
         Reserva reserva = finalizada(nueva());
  
-        MetodoInvalidoException ex = assertThrows(MetodoInvalidoException.class, reserva::cancelar);
+        OperacionInvalidaException ex = assertThrows(OperacionInvalidaException.class, reserva::cancelar);
  
         assertEquals("No se puede cancelar en el estado 'FINALIZADA'.", ex.getMessage());
     }
