@@ -1,6 +1,5 @@
-package com.pepito.reservas.reserva.estado;
+package com.pepito.reservas.reserva;
 
-import com.pepito.reservas.reserva.ReservaException;
 
 /*
  * Se lanza cuando se pide una operación que el Estado vigente de la Reserva no permite.

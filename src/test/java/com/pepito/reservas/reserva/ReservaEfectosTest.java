@@ -5,7 +5,6 @@ import com.pepito.reservas.catalogo.SinCupoException;
 import com.pepito.reservas.cliente.Cliente;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.procesadorpago.PagoRechazadoException;
-import com.pepito.reservas.reserva.estado.NombreEstado;
 import com.pepito.reservas.traslado.MetodoTraslado;
 import com.pepito.reservas.traslado.SinTraslado;
 import org.junit.jupiter.api.Test;
@@ -14,6 +13,7 @@ import org.mockito.InOrder;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.pepito.reservas.reserva.ReservaFixture.conItem;
 import static com.pepito.reservas.reserva.ReservaFixture.confirmada;
 import static com.pepito.reservas.reserva.ReservaFixture.enCheckIn;
 import static com.pepito.reservas.reserva.ReservaFixture.enCurso;
@@ -183,7 +183,7 @@ class ReservaEfectosTest {
 
     @Test
     void confirmarBloqueaCuposAntesDeCobrar() {
-        Reserva reserva = espia();
+        Reserva reserva = conItem(espia());
         MetodoPago pago = pago();
 
         reserva.confirmar(pago);
@@ -304,6 +304,38 @@ class ReservaEfectosTest {
 
         assertThrows(UnsupportedOperationException.class,
                 () -> reserva.getVouchers().add(new VoucherCredito(1, "x")));
+    }
+
+    /* Reserva vacía */
+
+    @Test
+    void noSePuedeConfirmarUnaReservaSinItems() {
+        Reserva reserva = nueva();
+        MetodoPago pago = pago();
+
+        assertThrows(ReservaVaciaException.class, () -> reserva.confirmar(pago));
+
+        verify(pago, never()).procesarPago(anyDouble());
+        assertEquals(NombreEstado.SOLICITUD_PENDIENTE, reserva.getEstado().getNombre());
+    }
+
+    @Test
+    void unaReservaConUnItemDePrecioCeroSePuedeConfirmar() {
+        Reserva reserva = nueva();
+        reserva.agregarItem(item(0));
+
+        reserva.confirmar(pago());
+
+        assertEquals(NombreEstado.CONFIRMADA, reserva.getEstado().getNombre());
+        assertEquals(0, reserva.getCobro().orElseThrow().total(), 0.001);
+    }
+
+    @Test
+    void sinCobroNoSePuedenCalcularReembolsos() {
+        Reserva reserva = nueva();
+
+        assertThrows(ReservaException.class, reserva::generarVoucherReembolsoTotal);
+        assertThrows(ReservaException.class, reserva::getTotalServiciosNoDisfrutados);
     }
 
     /* Accesos */

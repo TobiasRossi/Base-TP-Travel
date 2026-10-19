@@ -1,12 +1,12 @@
-package com.pepito.reservas.reserva.estado;
+package com.pepito.reservas.reserva;
  
 /*
  * Estado terminal: no redefine ninguna operación, así que todas se rechazan.
  */
 
-public class Finalizada extends EstadoReserva {
+class Finalizada extends EstadoReserva {
  
-    public Finalizada() {
+    Finalizada() {
         super(NombreEstado.FINALIZADA);
     }
 }

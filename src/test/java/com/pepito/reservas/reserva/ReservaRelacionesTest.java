@@ -3,7 +3,6 @@ package com.pepito.reservas.reserva;
 import com.pepito.reservas.catalogo.ItemCatalogo;
 import com.pepito.reservas.cliente.Cliente;
 import com.pepito.reservas.procesadorpago.MetodoPago;
-import com.pepito.reservas.reserva.estado.NombreEstado;
 import com.pepito.reservas.traslado.MetodoTraslado;
 import com.pepito.reservas.traslado.TrasladoNoDisponibleException;
 import org.junit.jupiter.api.Test;
@@ -128,7 +127,7 @@ class ReservaRelacionesTest {
 
     @Test
     void confirmarVerificaLaDisponibilidadDelTrasladoElegido() {
-        Reserva reserva = nueva();
+        Reserva reserva = ReservaFixture.conItem(nueva());
         MetodoTraslado traslado = mock(MetodoTraslado.class);
         reserva.elegirTraslado(traslado);
 

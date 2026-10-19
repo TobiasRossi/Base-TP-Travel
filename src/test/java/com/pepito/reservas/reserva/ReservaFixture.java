@@ -47,7 +47,16 @@ final class ReservaFixture {
         return pago;
     }
 
+    /* Una reserva necesita al menos un ítem para confirmarse: si no tiene, se le agrega uno de precio 0. */
+    static Reserva conItem(Reserva r) {
+        if (r.getItems().isEmpty()) {
+            r.agregarItem(item(0));
+        }
+        return r;
+    }
+
     static Reserva confirmada(Reserva r) {
+        conItem(r);
         r.confirmar(pago());
         return r;
     }

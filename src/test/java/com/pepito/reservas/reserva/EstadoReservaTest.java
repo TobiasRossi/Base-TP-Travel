@@ -1,4 +1,4 @@
-package com.pepito.reservas.reserva.estado;
+package com.pepito.reservas.reserva;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;

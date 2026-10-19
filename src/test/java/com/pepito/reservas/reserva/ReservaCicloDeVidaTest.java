@@ -2,15 +2,6 @@ package com.pepito.reservas.reserva;
  
 import com.pepito.reservas.catalogo.ItemCatalogo;
 import com.pepito.reservas.traslado.MetodoTraslado;
-import com.pepito.reservas.reserva.estado.Cancelada;
-import com.pepito.reservas.reserva.estado.Confirmada;
-import com.pepito.reservas.reserva.estado.EnCheckIn;
-import com.pepito.reservas.reserva.estado.EnCurso;
-import com.pepito.reservas.reserva.estado.EstadoReserva;
-import com.pepito.reservas.reserva.estado.Finalizada;
-import com.pepito.reservas.reserva.estado.NombreEstado;
-import com.pepito.reservas.reserva.estado.MetodoInvalidoException;
-import com.pepito.reservas.reserva.estado.SolicitudPendiente;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -24,6 +15,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
  
 import static com.pepito.reservas.reserva.ReservaFixture.cancelada;
+import static com.pepito.reservas.reserva.ReservaFixture.conItem;
 import static com.pepito.reservas.reserva.ReservaFixture.confirmada;
 import static com.pepito.reservas.reserva.ReservaFixture.enCheckIn;
 import static com.pepito.reservas.reserva.ReservaFixture.enCurso;
@@ -49,7 +41,7 @@ class ReservaCicloDeVidaTest {
     
     static Stream<Arguments> transicionesValidas() {
         return Stream.of(
-                Arguments.of("pendiente -> confirmar", (Supplier<Reserva>) () -> nueva(),
+                Arguments.of("pendiente -> confirmar", (Supplier<Reserva>) () -> conItem(nueva()),
                         (Consumer<Reserva>) r -> r.confirmar(pago()), NombreEstado.CONFIRMADA),
                 Arguments.of("pendiente -> cancelar", (Supplier<Reserva>) () -> nueva(),
                         (Consumer<Reserva>) Reserva::cancelar, NombreEstado.CANCELADA),
@@ -81,7 +73,7 @@ class ReservaCicloDeVidaTest {
  
     @Test
     void caminoCompletoHastaFinalizada() {
-        Reserva reserva = nueva();
+        Reserva reserva = conItem(nueva());
  
         reserva.confirmar(pago());
         reserva.hacerCheckIn();
