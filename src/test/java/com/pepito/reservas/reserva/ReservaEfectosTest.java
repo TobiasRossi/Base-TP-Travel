@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -88,8 +89,8 @@ class ReservaEfectosTest {
 
         reserva.confirmar(pago());
 
-        verify(a).bloquearCupo();
-        verify(b).bloquearCupo();
+        verify(a).bloquearCupo(1);
+        verify(b).bloquearCupo(1);
     }
 
     @Test
@@ -98,7 +99,7 @@ class ReservaEfectosTest {
         ItemCatalogo conCupo = item(100);
         ItemCatalogo sinCupo = item(200);
         ItemCatalogo noAlcanzado = item(300);
-        doThrow(new SinCupoException("sin cupo")).when(sinCupo).bloquearCupo();
+        doThrow(new SinCupoException("sin cupo")).when(sinCupo).bloquearCupo(anyInt());
         reserva.agregarItem(conCupo);
         reserva.agregarItem(sinCupo);
         reserva.agregarItem(noAlcanzado);
@@ -106,9 +107,9 @@ class ReservaEfectosTest {
 
         assertThrows(SinCupoException.class, () -> reserva.confirmar(pago));
 
-        verify(conCupo).liberarCupo();
-        verify(sinCupo, never()).liberarCupo();
-        verify(noAlcanzado, never()).bloquearCupo();
+        verify(conCupo).liberarCupo(1);
+        verify(sinCupo, never()).liberarCupo(anyInt());
+        verify(noAlcanzado, never()).bloquearCupo(anyInt());
         verify(pago, never()).procesarPago(anyDouble());
         assertEquals(NombreEstado.SOLICITUD_PENDIENTE, reserva.getEstado().getNombre());
     }
@@ -132,7 +133,7 @@ class ReservaEfectosTest {
 
         reserva.cancelar();
 
-        verify(a).liberarCupo();
+        verify(a).liberarCupo(1);
         assertTrue(reserva.getVouchers().isEmpty());
     }
 
@@ -174,8 +175,10 @@ class ReservaEfectosTest {
         reserva.confirmar(pago);
 
         verify(pago).procesarPago(1700);
-        assertEquals(1500, reserva.getMontoServiciosCobrado(), 0.001);
-        assertEquals(200, reserva.getMontoTasasCobrado(), 0.001);
+        Cobro cobro = reserva.getCobro().orElseThrow();
+        assertEquals(1500, cobro.montoServicios(), 0.001);
+        assertEquals(200, cobro.montoTasas(), 0.001);
+        assertEquals(1700, cobro.total(), 0.001);
     }
 
     @Test
@@ -203,10 +206,10 @@ class ReservaEfectosTest {
 
         assertThrows(PagoRechazadoException.class, () -> reserva.confirmar(pago));
 
-        verify(a).bloquearCupo();
-        verify(a).liberarCupo();
+        verify(a).bloquearCupo(1);
+        verify(a).liberarCupo(1);
         assertEquals(NombreEstado.SOLICITUD_PENDIENTE, reserva.getEstado().getNombre());
-        assertEquals(0, reserva.getMontoServiciosCobrado(), 0.001);
+        assertTrue(reserva.getCobro().isEmpty());
         assertTrue(eventos.isEmpty());
     }
 
@@ -309,11 +312,12 @@ class ReservaEfectosTest {
     void laReservaConservaSuClienteYSuMetodoDeTraslado() {
         Cliente cliente = mock(Cliente.class);
         MetodoTraslado traslado = mock(MetodoTraslado.class);
-        Reserva reserva = new Reserva(cliente);
+        Reserva reserva = new Reserva(cliente, 2);
 
         reserva.elegirTraslado(traslado);
 
         assertSame(cliente, reserva.getCliente());
+        assertEquals(2, reserva.getCantidadPasajeros());
         assertSame(traslado, reserva.getMetodoTraslado());
     }
 

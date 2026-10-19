@@ -13,4 +13,9 @@ public class SinTraslado implements MetodoTraslado {
 		return 0;
 	}
 
+	/* No hay nada que reservar: siempre disponible. */
+	@Override
+	public void verificarDisponibilidad(Reserva reserva) {
+	}
+
 }

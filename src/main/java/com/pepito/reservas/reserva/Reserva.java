@@ -3,6 +3,7 @@ package com.pepito.reservas.reserva;
 import com.pepito.reservas.catalogo.ItemCatalogo;
 import com.pepito.reservas.catalogo.SinCupoException;
 import com.pepito.reservas.cliente.Cliente;
+import com.pepito.reservas.procesadorpago.ComprobantePago;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.procesadorpago.PagoRechazadoException;
 import com.pepito.reservas.reserva.estado.EstadoReserva;
@@ -11,9 +12,12 @@ import com.pepito.reservas.reserva.suscriptor.ReservaObserver;
 import com.pepito.reservas.traslado.MetodoTraslado;
 import com.pepito.reservas.traslado.SinTraslado;
  
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /*
@@ -24,21 +28,33 @@ import java.util.function.Consumer;
 public class Reserva implements GestorReservas {
 
 	private final Cliente cliente;
+    private final int cantidadPasajeros;
+    private final Clock reloj;
     private final List<ItemCatalogo> items;
     private final List<VoucherCredito> vouchers;
     private final List<ReservaObserver> observadores;
     private EstadoReserva estado;
     private MetodoTraslado metodoTraslado;
-    private double montoServiciosCobrado;
-    private double montoTasasCobrado;
+    private Optional<Cobro> cobro;
 
-    public Reserva(Cliente cliente){
+    public Reserva(Cliente cliente, int cantidadPasajeros){
+        this(cliente, cantidadPasajeros, Clock.systemDefaultZone());
+    }
+
+    /* El reloj se inyecta para poder fijar la fecha del cobro en los tests. */
+    public Reserva(Cliente cliente, int cantidadPasajeros, Clock reloj){
+        if (cantidadPasajeros < 1) {
+            throw new CantidadPasajerosInvalidaException("Una reserva necesita al menos un pasajero (recibió " + cantidadPasajeros + ").");
+        }
     	this.cliente = cliente;
+        this.cantidadPasajeros = cantidadPasajeros;
+        this.reloj = reloj;
         this.items = new ArrayList<>();
         this.vouchers = new ArrayList<>();
         this.observadores = new ArrayList<>();
         this.estado = new SolicitudPendiente();
         this.metodoTraslado = new SinTraslado();
+        this.cobro = Optional.empty();
     }
     
     /* Operaciones Publicas. Solo delegan en el Estado */
@@ -106,7 +122,11 @@ public class Reserva implements GestorReservas {
 
     /* Efectos causados por los Estados. La Reserva saber HACER, el Estado CUANDO */
     
+    /* El Estado decide CUÁNDO se puede agregar; agregar incluye no aceptar ítems que no pasan su validación (2.1). */
     public void efectivizarAgregadoDeItem(ItemCatalogo item) {
+        if (!item.validate()) {
+            throw new ItemInvalidoException("El ítem no pasa su validación y no se puede agregar a la reserva.");
+        }
         this.items.add(item);
     }
  
@@ -118,7 +138,13 @@ public class Reserva implements GestorReservas {
         this.metodoTraslado = metodoTraslado;
     }
 
+    /* Lanza TrasladoNoDisponibleException si el traslado elegido no tiene disponibilidad. */
+    public void verificarDisponibilidadTraslado() {
+        this.metodoTraslado.verificarDisponibilidad(this);
+    }
+
     /*
+     * Se bloquea una unidad por pasajero en cada ítem.
      * Todo o nada: si un ítem no tiene Cupo, se liberan los que ya se bloquearon y se relanza.
      * Cada ítem sabe bloquear su propio Cupo (un Paquete lo propaga a sus partes).
      */
@@ -126,38 +152,38 @@ public class Reserva implements GestorReservas {
         List<ItemCatalogo> bloqueados = new ArrayList<>();
         try {
             for (ItemCatalogo item : this.items) {
-                item.bloquearCupo();
+                item.bloquearCupo(this.cantidadPasajeros);
                 bloqueados.add(item);
             }
         } catch (SinCupoException e) {
-            bloqueados.forEach(ItemCatalogo::liberarCupo);
+            bloqueados.forEach(item -> item.liberarCupo(this.cantidadPasajeros));
             throw e;
         }
     }
  
     public void liberarCupos() {
-        this.items.forEach(ItemCatalogo::liberarCupo);
+        this.items.forEach(item -> item.liberarCupo(this.cantidadPasajeros));
     }
 
     /*
      * El medio de pago valida y procesa; la Reserva solo le pide el monto. Si el pago se rechaza, se liberan los Cupos.
-     * Los montos se congelan al cobrar: los reembolsos devuelven lo que el cliente efectivamente pagó.
+     * Montos, comprobante y fecha se congelan en un Cobro: los reembolsos devuelven lo que el cliente efectivamente pagó.
      */
     public void cobrar(MetodoPago metodoPago) {
         double servicios = this.getTotalServicios();
         double tasas = this.getTotalTasas();
+        ComprobantePago comprobante;
         try {
-            metodoPago.procesarPago(servicios + tasas);
+            comprobante = metodoPago.procesarPago(servicios + tasas);
         } catch (PagoRechazadoException e) {
             this.liberarCupos();
             throw e;
         }
-        this.montoServiciosCobrado = servicios;
-        this.montoTasasCobrado = tasas;
+        this.cobro = Optional.of(new Cobro(servicios, tasas, comprobante, LocalDateTime.now(this.reloj)));
     }
 
     public void generarVoucherReembolsoTotal() {
-        double monto = this.montoServiciosCobrado + this.montoTasasCobrado;
+        double monto = this.cobro.orElseThrow().total();
         this.registrarVoucher(new VoucherCredito(monto, "Cancelación en check-in: reembolso de servicios y tasas"));
     }
  
@@ -170,10 +196,10 @@ public class Reserva implements GestorReservas {
         this.vouchers.add(voucher);
     }
 
-    /* Calculo de montos (actuales: lo que se cobraría si se confirma ahora) */
+    /* Calculo de montos (actuales: lo que se cobraría si se confirma ahora). Cada pasajero paga una unidad de cada ítem. */
     
     public double getTotalServicios() {
-        return this.items.stream().mapToDouble(ItemCatalogo::getPrecioFinal).sum();
+        return this.items.stream().mapToDouble(ItemCatalogo::getPrecioFinal).sum() * this.cantidadPasajeros;
     }
  
     public double getTotalTasas() {
@@ -184,19 +210,15 @@ public class Reserva implements GestorReservas {
         return this.getTotalServicios() + this.getTotalTasas();
     }
 
-    /* Montos cobrados al confirmar (base de los reembolsos) */
+    /* Lo cobrado al confirmar (base de los reembolsos). Vacío mientras la reserva no se confirmó. */
 
-    public double getMontoServiciosCobrado() {
-        return this.montoServiciosCobrado;
-    }
-
-    public double getMontoTasasCobrado() {
-        return this.montoTasasCobrado;
+    public Optional<Cobro> getCobro() {
+        return this.cobro;
     }
 
     public double getTotalServiciosNoDisfrutados() {
         // Falta definir el criterio de "servicio disfrutado"
-    	return this.montoServiciosCobrado;
+    	return this.cobro.orElseThrow().montoServicios();
     }
 
     /* Getters */
@@ -211,6 +233,10 @@ public class Reserva implements GestorReservas {
  
     public Cliente getCliente() {
         return this.cliente;
+    }
+
+    public int getCantidadPasajeros() {
+        return this.cantidadPasajeros;
     }
  
     public List<ItemCatalogo> getItems() {
