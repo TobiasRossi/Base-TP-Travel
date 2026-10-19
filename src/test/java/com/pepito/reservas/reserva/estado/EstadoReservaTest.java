@@ -33,8 +33,13 @@ class EstadoReservaTest {
     }
 
     @Test
+    void elegirTrasladoSeRechazaPorDefecto() {
+        verificarRechazo("elegir traslado", () -> estado.elegirTraslado(null, null));
+    }
+
+    @Test
     void confirmarSeRechazaPorDefecto() {
-        verificarRechazo("confirmar", () -> estado.confirmar(null));
+        verificarRechazo("confirmar", () -> estado.confirmar(null, null));
     }
 
     @Test
