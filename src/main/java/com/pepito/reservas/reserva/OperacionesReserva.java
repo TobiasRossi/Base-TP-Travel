@@ -9,7 +9,7 @@ import com.pepito.reservas.traslado.MetodoTraslado;
  * Es el contrato del Contexto (Reserva); NO es el contrato de los estados, que reciben la Reserva como parámetro (en EstadoReserva).
  */
 
-public interface GestorReservas {
+public interface OperacionesReserva {
  
     void agregarItem(ItemCatalogo item);
  

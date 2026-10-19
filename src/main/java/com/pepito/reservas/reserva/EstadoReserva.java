@@ -59,8 +59,8 @@ public abstract class EstadoReserva {
      * Crea la excepción Cada método la lanza con su propio "throw".
      * Decision tomada porque sino JaCoCo marcaría como no cubiertos los métodos que lo invocan.
      */
-    MetodoInvalidoException operacionInvalida(String operacion) {
-        return new MetodoInvalidoException(this.nombre.name(), operacion);
+    OperacionInvalidaException operacionInvalida(String operacion) {
+        return new OperacionInvalidaException(this.nombre.name(), operacion);
     }
  
     @Override

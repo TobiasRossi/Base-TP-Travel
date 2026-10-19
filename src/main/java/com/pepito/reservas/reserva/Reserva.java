@@ -22,10 +22,10 @@ import java.util.function.Consumer;
  * Contexto del Patrón State y Sujeto del Patrón Observer.
  * No decide operaciones válidas, las delega al Estado vigente.
  * Los efectos que ejecutan los Estados (cambiarEstado, cobrar, bloquearCupos, ...) son package-private:
- * desde afuera del paquete la única forma de modificar una Reserva son las operaciones de GestorReservas.
+ * desde afuera del paquete la única forma de modificar una Reserva son las operaciones de OperacionesReserva.
  */
 
-public class Reserva implements GestorReservas {
+public class Reserva implements OperacionesReserva {
 
 	private final Cliente cliente;
     private final int cantidadPasajeros;
@@ -130,8 +130,11 @@ public class Reserva implements GestorReservas {
         this.items.add(item);
     }
  
+    /* Quitar un ítem que no está es un error del que llama: se avisa en vez de ignorarlo en silencio. */
     void efectivizarEliminacionDeItem(ItemCatalogo item) {
-        this.items.remove(item);
+        if (!this.items.remove(item)) {
+            throw new ItemNoIncluidoException("El ítem no forma parte de la reserva.");
+        }
     }
 
     void efectivizarEleccionDeTraslado(MetodoTraslado metodoTraslado) {

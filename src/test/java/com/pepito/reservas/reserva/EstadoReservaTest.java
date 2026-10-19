@@ -17,7 +17,7 @@ class EstadoReservaTest {
     };
 
     private void verificarRechazo(String operacion, Executable accion) {
-        MetodoInvalidoException ex = assertThrows(MetodoInvalidoException.class, accion);
+        OperacionInvalidaException ex = assertThrows(OperacionInvalidaException.class, accion);
         assertEquals("FINALIZADA", ex.getEstado());
         assertEquals(operacion, ex.getOperacion());
     }

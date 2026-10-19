@@ -57,6 +57,17 @@ class ReservaEfectosTest {
     }
 
     @Test
+    void quitarUnItemQueNoEstaEnLaReservaLanzaExcepcion() {
+        Reserva reserva = nueva();
+        ItemCatalogo incluido = item(100);
+        reserva.agregarItem(incluido);
+
+        assertThrows(ItemNoIncluidoException.class, () -> reserva.quitarItem(item(200)));
+
+        assertEquals(List.of(incluido), reserva.getItems());
+    }
+
+    @Test
     void serviciosDoRecorreTodosLosItems() {
         Reserva reserva = nueva();
         ItemCatalogo a = item(100);
