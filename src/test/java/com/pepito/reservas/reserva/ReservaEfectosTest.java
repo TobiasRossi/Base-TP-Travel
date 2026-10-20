@@ -6,7 +6,6 @@ import com.pepito.reservas.cliente.Cliente;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.procesadorpago.PagoRechazadoException;
 import com.pepito.reservas.traslado.MetodoTraslado;
-import com.pepito.reservas.traslado.SinTraslado;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
@@ -22,7 +21,6 @@ import static com.pepito.reservas.reserva.ReservaFixture.item;
 import static com.pepito.reservas.reserva.ReservaFixture.nueva;
 import static com.pepito.reservas.reserva.ReservaFixture.pago;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -244,9 +242,19 @@ class ReservaEfectosTest {
         Reserva reserva = nueva();
         reserva.agregarItem(item(1000));
 
-        assertInstanceOf(SinTraslado.class, reserva.getMetodoTraslado());
+        assertTrue(reserva.getMetodoTraslado().isEmpty());
         assertEquals(0, reserva.getTotalTasas(), 0.001);
         assertEquals(1000, reserva.getTotal(), 0.001);
+    }
+
+    @Test
+    void sinTrasladoElegidoConfirmarNoVerificaDisponibilidad() {
+        Reserva reserva = conItem(nueva());
+
+        reserva.confirmar(pago());
+
+        assertEquals(NombreEstado.CONFIRMADA, reserva.getEstado().getNombre());
+        assertEquals(0, reserva.getCobro().orElseThrow().montoTasas(), 0.001);
     }
 
     @Test
@@ -361,7 +369,7 @@ class ReservaEfectosTest {
 
         assertSame(cliente, reserva.getCliente());
         assertEquals(2, reserva.getCantidadPasajeros());
-        assertSame(traslado, reserva.getMetodoTraslado());
+        assertSame(traslado, reserva.getMetodoTraslado().orElseThrow());
     }
 
     @Test

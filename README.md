@@ -72,7 +72,6 @@ C:.
     │   │               ├───catalogo
     │   │               │   │   Catalogo.java
     │   │               │   │   ItemCatalogo.java
-    │   │               │   │   SinCupoException.java
     │   │               │   │
     │   │               │   └───busqueda
     │   │               │           CriterioBusqueda.java
@@ -82,10 +81,6 @@ C:.
     │   │               │
     │   │               ├───notificador
     │   │               ├───procesadorpago
-    │   │               │       ComprobantePago.java
-    │   │               │       MetodoPago.java
-    │   │               │       PagoRechazadoException.java
-    │   │               │
     │   │               ├───reporte
     │   │               ├───reserva
     │   │               │   │   Reserva.java                 (Context del State, Subject del Observer)
@@ -116,13 +111,25 @@ C:.
     │   │               │
     │   │               └───traslado
     │   │                       MetodoTraslado.java
-    │   │                       SinTraslado.java
-    │   │                       TrasladoNoDisponibleException.java
     │   │
     │   └───resources
     └───test
         └───java
 ```
+
+## Dependencias del 2.2
+
+El módulo 2.2 usa estas clases y métodos de otros módulos. Hasta que cada módulo los agregue, el 2.2 no compila:
+
+| Módulo | Qué necesita el 2.2 | Para qué |
+|--------|---------------------|----------|
+| 2.1 | `ItemCatalogo.bloquearCupo(int cantidad)` y `ItemCatalogo.liberarCupo(int cantidad)` | Bloquear y liberar un cupo por pasajero al confirmar y cancelar |
+| 2.1 | `SinCupoException` (paquete `catalogo`) | Saber que un ítem no tiene cupo y deshacer los bloqueos ya hechos |
+| 2.3 | `MetodoTraslado.verificarDisponibilidad(Reserva reserva)` | Verificar el traslado elegido antes de bloquear cupos y cobrar |
+| 2.3 | `TrasladoNoDisponibleException` (paquete `traslado`) | La lanza `verificarDisponibilidad` si no hay disponibilidad |
+| 2.4 | `MetodoPago` con `ComprobantePago procesarPago(double monto)` (paquete `procesadorpago`) | Cobrar la reserva al confirmar |
+| 2.4 | `ComprobantePago` con `getCodigoTransaccion(): String` y `getMonto(): double` | Guardarlo en el `Cobro` |
+| 2.4 | `PagoRechazadoException` | Saber que el pago falló y liberar los cupos |
 
 ## Tecnologías
 
@@ -150,6 +157,7 @@ _Se va completando a medida que avanza el diseño._
 | 2.2 | Pago dentro de `confirmar(MetodoPago)`; orden: ítems → traslado → cupos → cobro → transición | La reserva no queda pagada sin cupo ni con cupos bloqueados sin pago; si algo falla, se deshace y no se notifica | Cobrar primero y devolver la plata si no hay cupo |
 | 2.2 | Bloqueo de cupos todo-o-nada, una unidad por pasajero | Si un ítem no tiene cupo, se liberan los ya bloqueados; una reserva de N pasajeros consume y paga N unidades | Bloquear ítem por ítem sin rollback; una unidad por ítem sin importar los pasajeros |
 | 2.2 | `Cobro` inmutable (montos, comprobante, fecha con `Clock` inyectable) | Reembolsos, factura y reportes usan lo que efectivamente se pagó y cuándo, aunque después cambien los precios | Recalcular con precios actuales al cancelar |
-| 2.2 | `SinTraslado` (**Null Object**) como traslado por defecto | Elimina el `null` y el `if` en el cálculo de tasas | `metodoTraslado == null ? 0 : …` |
+| 2.2 | El traslado es un `Optional<MetodoTraslado>`: vacío al crear la reserva, con valor en `elegirTraslado` | Sin traslado elegido las tasas son 0 y no se verifica disponibilidad, sin `null` ni `if`; no se inventa un método de traslado que el enunciado no menciona | `metodoTraslado == null ? 0 : …`, o una clase `SinTraslado` (Null Object) ajena al 2.3 |
+| 2.2 | El 2.2 solo implementa sus propias clases; lo que necesita de otros módulos lo usa por su nombre y queda sin compilar hasta que ese módulo lo agregue (ver "Dependencias del 2.2") | Cada módulo es dueño de su código y el historial refleja quién hizo qué | Que el 2.2 cree clases y métodos de otros módulos para compilar |
 | 2.2 | Excepciones de dominio propias bajo `ReservaException` (`OperacionInvalida`, `ReservaVacia`, `ItemInvalido`, `ItemNoIncluido`, `CantidadPasajerosInvalida`) | El que llama puede distinguir y atrapar errores del dominio; el mensaje explica qué regla se violó | `RuntimeException` / `IllegalStateException` genéricas o devolver `null` |
 | 2.2/2.5 | Patrón **Observer**: `Reserva` (Subject) notifica a cada `ReservaObserver` con estado anterior y nuevo; un observer por subsistema; `RegistroReservas` los suscribe a cada reserva | Agregar subsistemas sin tocar `Reserva` ni a los demás (OCP); la Reserva no los conoce | Un único observer que hace todo, o que `Reserva` llame directamente a mail, factura y club |

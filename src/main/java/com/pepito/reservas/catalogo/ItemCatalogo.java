@@ -13,11 +13,4 @@ public interface ItemCatalogo extends Validador {
     
     double getPrecioFinal();
 
-    /* Cupos: los usa la Reserva al confirmar/cancelar. Un Paquete los propaga a sus ítems. */
-
-    /* Bloquea "cantidad" unidades (una por pasajero). Lanza SinCupoException si hay menos disponibles. */
-    void bloquearCupo(int cantidad);
-
-    void liberarCupo(int cantidad);
-
 }

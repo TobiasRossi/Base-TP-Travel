@@ -8,7 +8,6 @@ import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.procesadorpago.PagoRechazadoException;
 import com.pepito.reservas.reserva.suscriptor.ReservaObserver;
 import com.pepito.reservas.traslado.MetodoTraslado;
-import com.pepito.reservas.traslado.SinTraslado;
  
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -34,7 +33,7 @@ public class Reserva implements OperacionesReserva {
     private final List<VoucherCredito> vouchers;
     private final List<ReservaObserver> observadores;
     private EstadoReserva estado;
-    private MetodoTraslado metodoTraslado;
+    private Optional<MetodoTraslado> metodoTraslado;
     private Optional<Cobro> cobro;
 
     public Reserva(Cliente cliente, int cantidadPasajeros){
@@ -53,7 +52,7 @@ public class Reserva implements OperacionesReserva {
         this.vouchers = new ArrayList<>();
         this.observadores = new ArrayList<>();
         this.estado = new SolicitudPendiente();
-        this.metodoTraslado = new SinTraslado();
+        this.metodoTraslado = Optional.empty();
         this.cobro = Optional.empty();
     }
     
@@ -138,7 +137,7 @@ public class Reserva implements OperacionesReserva {
     }
 
     void efectivizarEleccionDeTraslado(MetodoTraslado metodoTraslado) {
-        this.metodoTraslado = metodoTraslado;
+        this.metodoTraslado = Optional.of(metodoTraslado);
     }
 
     /* Un ítem de precio 0 es válido; lo que no se puede confirmar es una reserva sin ítems. */
@@ -148,9 +147,9 @@ public class Reserva implements OperacionesReserva {
         }
     }
 
-    /* Lanza TrasladoNoDisponibleException si el traslado elegido no tiene disponibilidad. */
+    /* Si hay un traslado elegido, él decide si está disponible (lanza TrasladoNoDisponibleException si no). */
     void verificarDisponibilidadTraslado() {
-        this.metodoTraslado.verificarDisponibilidad(this);
+        this.metodoTraslado.ifPresent(traslado -> traslado.verificarDisponibilidad(this));
     }
 
     /*
@@ -212,8 +211,9 @@ public class Reserva implements OperacionesReserva {
         return this.items.stream().mapToDouble(ItemCatalogo::getPrecioFinal).sum() * this.cantidadPasajeros;
     }
  
+    /* Sin traslado elegido no hay tasas. */
     public double getTotalTasas() {
-        return this.metodoTraslado.calcularCosto(this);
+        return this.metodoTraslado.map(traslado -> traslado.calcularCosto(this)).orElse(0.0);
     }
 
     public double getTotal() {
@@ -262,7 +262,8 @@ public class Reserva implements OperacionesReserva {
         return Collections.unmodifiableList(this.vouchers);
     }
  
-    public MetodoTraslado getMetodoTraslado() {
+    /* Vacío mientras no se eligió un traslado. */
+    public Optional<MetodoTraslado> getMetodoTraslado() {
         return this.metodoTraslado;
     }
     
