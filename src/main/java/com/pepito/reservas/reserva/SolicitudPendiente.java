@@ -1,6 +1,7 @@
 package com.pepito.reservas.reserva;
 
 import com.pepito.reservas.catalogo.ItemCatalogo;
+import com.pepito.reservas.catalogo.servicio.Periodo;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.traslado.MetodoTraslado;
 
@@ -15,13 +16,13 @@ class SolicitudPendiente extends EstadoReserva {
     }
 
     @Override
-    void agregarItem(Reserva reserva, ItemCatalogo item) {
-        reserva.efectivizarAgregadoDeItem(item);
+    void agregarItem(Reserva reserva, ItemCatalogo item, Periodo periodo) {
+        reserva.efectivizarAgregadoDeItem(item, periodo);
     }
 
     @Override
-    void quitarItem(Reserva reserva, ItemCatalogo item) {
-        reserva.efectivizarEliminacionDeItem(item);
+    void quitarItem(Reserva reserva, ItemCatalogo item, Periodo periodo) {
+        reserva.efectivizarEliminacionDeItem(item, periodo);
     }
 
     @Override

@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
  
+import static com.pepito.reservas.reserva.ReservaFixture.PERIODO;
 import static com.pepito.reservas.reserva.ReservaFixture.cancelada;
 import static com.pepito.reservas.reserva.ReservaFixture.conItem;
 import static com.pepito.reservas.reserva.ReservaFixture.confirmada;
@@ -91,8 +92,8 @@ class ReservaCicloDeVidaTest {
  
         // Los nombres de operación deben coincidir con los que usa EstadoReserva.
         Map<String, Consumer<Reserva>> operaciones = new LinkedHashMap<>();
-        operaciones.put("agregar ítem", r -> r.agregarItem(item));
-        operaciones.put("quitar ítem", r -> r.quitarItem(item));
+        operaciones.put("agregar ítem", r -> r.agregarItem(item, PERIODO));
+        operaciones.put("quitar ítem", r -> r.quitarItem(item, PERIODO));
         operaciones.put("elegir traslado", r -> r.elegirTraslado(traslado));
         operaciones.put("confirmar", r -> r.confirmar(pago()));
         operaciones.put("hacer check-in", Reserva::hacerCheckIn);

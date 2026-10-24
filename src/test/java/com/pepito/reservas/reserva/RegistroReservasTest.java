@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.pepito.reservas.reserva.ReservaFixture.PERIODO;
 import static com.pepito.reservas.reserva.ReservaFixture.RELOJ;
 import static com.pepito.reservas.reserva.ReservaFixture.item;
 import static com.pepito.reservas.reserva.ReservaFixture.pago;
@@ -59,7 +60,7 @@ class RegistroReservasTest {
     @Test
     void lasReservasDelRegistroUsanSuReloj() {
         Reserva reserva = registro.crearReserva(mock(Cliente.class), 1);
-        reserva.agregarItem(item(100));
+        reserva.agregarItem(item(100), PERIODO);
 
         reserva.confirmar(pago());
 

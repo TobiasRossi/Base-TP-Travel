@@ -5,8 +5,11 @@ import com.pepito.reservas.cliente.Cliente;
 import com.pepito.reservas.procesadorpago.ComprobantePago;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 
+import com.pepito.reservas.catalogo.servicio.Periodo;
+
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 
 import static org.mockito.ArgumentMatchers.anyDouble;
@@ -23,6 +26,9 @@ final class ReservaFixture {
 
     /* Reloj fijo: la fecha del cobro es siempre 2026-11-12T10:00. */
     static final Clock RELOJ = Clock.fixed(Instant.parse("2026-11-12T10:00:00Z"), ZoneOffset.UTC);
+
+    /* Período por defecto de los ítems de los tests: 21/12 al 23/12. */
+    static final Periodo PERIODO = new Periodo(LocalDate.of(2026, 12, 21), LocalDate.of(2026, 12, 23));
 
     private ReservaFixture() {
     }
@@ -50,7 +56,7 @@ final class ReservaFixture {
     /* Una reserva necesita al menos un ítem para confirmarse: si no tiene, se le agrega uno de precio 0. */
     static Reserva conItem(Reserva r) {
         if (r.getItems().isEmpty()) {
-            r.agregarItem(item(0));
+            r.agregarItem(item(0), PERIODO);
         }
         return r;
     }
@@ -86,7 +92,7 @@ final class ReservaFixture {
 
     static ItemCatalogo item(double precioFinal) {
         ItemCatalogo item = mock(ItemCatalogo.class);
-        when(item.getPrecioFinal()).thenReturn(precioFinal);
+        when(item.precioFinal()).thenReturn(precioFinal);
         when(item.validate()).thenReturn(true);
         return item;
     }

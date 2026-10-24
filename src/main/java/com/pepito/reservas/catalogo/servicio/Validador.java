@@ -1,4 +1,4 @@
-package com.pepito.reservas.servicio;
+package com.pepito.reservas.catalogo.servicio;
 
 public interface Validador {
 

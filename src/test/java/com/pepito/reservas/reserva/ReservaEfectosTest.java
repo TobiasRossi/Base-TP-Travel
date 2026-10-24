@@ -1,7 +1,8 @@
 package com.pepito.reservas.reserva;
 
 import com.pepito.reservas.catalogo.ItemCatalogo;
-import com.pepito.reservas.catalogo.SinCupoException;
+import com.pepito.reservas.catalogo.servicio.Periodo;
+import com.pepito.reservas.excepciones.DisponibilidadException;
 import com.pepito.reservas.cliente.Cliente;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.procesadorpago.PagoRechazadoException;
@@ -12,6 +13,7 @@ import org.mockito.InOrder;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.pepito.reservas.reserva.ReservaFixture.PERIODO;
 import static com.pepito.reservas.reserva.ReservaFixture.conItem;
 import static com.pepito.reservas.reserva.ReservaFixture.confirmada;
 import static com.pepito.reservas.reserva.ReservaFixture.enCheckIn;
@@ -38,6 +40,10 @@ import static org.mockito.Mockito.when;
 
 class ReservaEfectosTest {
 
+    private static List<ItemCatalogo> itemsDe(Reserva reserva) {
+        return reserva.getItems().stream().map(ItemReservado::getItem).toList();
+    }
+
     /* Ítems (solo en SOLICITUD_PENDIENTE) */
 
     @Test
@@ -46,23 +52,23 @@ class ReservaEfectosTest {
         ItemCatalogo a = item(100);
         ItemCatalogo b = item(200);
 
-        reserva.agregarItem(a);
-        reserva.agregarItem(b);
-        assertEquals(List.of(a, b), reserva.getItems());
+        reserva.agregarItem(a, PERIODO);
+        reserva.agregarItem(b, PERIODO);
+        assertEquals(List.of(a, b), itemsDe(reserva));
 
-        reserva.quitarItem(a);
-        assertEquals(List.of(b), reserva.getItems());
+        reserva.quitarItem(a, PERIODO);
+        assertEquals(List.of(b), itemsDe(reserva));
     }
 
     @Test
     void quitarUnItemQueNoEstaEnLaReservaLanzaExcepcion() {
         Reserva reserva = nueva();
         ItemCatalogo incluido = item(100);
-        reserva.agregarItem(incluido);
+        reserva.agregarItem(incluido, PERIODO);
 
-        assertThrows(ItemNoIncluidoException.class, () -> reserva.quitarItem(item(200)));
+        assertThrows(ItemNoIncluidoException.class, () -> reserva.quitarItem(item(200), PERIODO));
 
-        assertEquals(List.of(incluido), reserva.getItems());
+        assertEquals(List.of(incluido), itemsDe(reserva));
     }
 
     @Test
@@ -70,8 +76,8 @@ class ReservaEfectosTest {
         Reserva reserva = nueva();
         ItemCatalogo a = item(100);
         ItemCatalogo b = item(200);
-        reserva.agregarItem(a);
-        reserva.agregarItem(b);
+        reserva.agregarItem(a, PERIODO);
+        reserva.agregarItem(b, PERIODO);
 
         List<ItemCatalogo> visitados = new ArrayList<>();
         reserva.serviciosDo(visitados::add);
@@ -83,7 +89,7 @@ class ReservaEfectosTest {
     void laListaDeItemsExpuestaNoSePuedeModificar() {
         Reserva reserva = nueva();
 
-        assertThrows(UnsupportedOperationException.class, () -> reserva.getItems().add(item(1)));
+        assertThrows(UnsupportedOperationException.class, () -> reserva.getItems().add(null));
     }
 
     /* Cupos */
@@ -93,13 +99,13 @@ class ReservaEfectosTest {
         Reserva reserva = nueva();
         ItemCatalogo a = item(100);
         ItemCatalogo b = item(200);
-        reserva.agregarItem(a);
-        reserva.agregarItem(b);
+        reserva.agregarItem(a, PERIODO);
+        reserva.agregarItem(b, PERIODO);
 
         reserva.confirmar(pago());
 
-        verify(a).bloquearCupo(1);
-        verify(b).bloquearCupo(1);
+        verify(a).reservar(PERIODO, 1);
+        verify(b).reservar(PERIODO, 1);
     }
 
     @Test
@@ -108,17 +114,17 @@ class ReservaEfectosTest {
         ItemCatalogo conCupo = item(100);
         ItemCatalogo sinCupo = item(200);
         ItemCatalogo noAlcanzado = item(300);
-        doThrow(new SinCupoException("sin cupo")).when(sinCupo).bloquearCupo(anyInt());
-        reserva.agregarItem(conCupo);
-        reserva.agregarItem(sinCupo);
-        reserva.agregarItem(noAlcanzado);
+        doThrow(new DisponibilidadException.PeriodoSinDisponibilidad(PERIODO)).when(sinCupo).reservar(any(Periodo.class), anyInt());
+        reserva.agregarItem(conCupo, PERIODO);
+        reserva.agregarItem(sinCupo, PERIODO);
+        reserva.agregarItem(noAlcanzado, PERIODO);
         MetodoPago pago = pago();
 
-        assertThrows(SinCupoException.class, () -> reserva.confirmar(pago));
+        assertThrows(DisponibilidadException.class, () -> reserva.confirmar(pago));
 
-        verify(conCupo).liberarCupo(1);
-        verify(sinCupo, never()).liberarCupo(anyInt());
-        verify(noAlcanzado, never()).bloquearCupo(anyInt());
+        verify(conCupo).liberar(PERIODO, 1);
+        verify(sinCupo, never()).liberar(any(Periodo.class), anyInt());
+        verify(noAlcanzado, never()).reservar(any(Periodo.class), anyInt());
         verify(pago, never()).procesarPago(anyDouble());
         assertEquals(NombreEstado.SOLICITUD_PENDIENTE, reserva.getEstado().getNombre());
     }
@@ -137,12 +143,12 @@ class ReservaEfectosTest {
     void cancelarDesdeConfirmadaLiberaElCupoDeCadaItemSinVoucher() {
         Reserva reserva = nueva();
         ItemCatalogo a = item(100);
-        reserva.agregarItem(a);
+        reserva.agregarItem(a, PERIODO);
         confirmada(reserva);
 
         reserva.cancelar();
 
-        verify(a).liberarCupo(1);
+        verify(a).liberar(PERIODO, 1);
         assertTrue(reserva.getVouchers().isEmpty());
     }
 
@@ -168,8 +174,8 @@ class ReservaEfectosTest {
 
     private Reserva reservaConItemsYTraslado(double tasas) {
         Reserva reserva = nueva();
-        reserva.agregarItem(item(1000));
-        reserva.agregarItem(item(500));
+        reserva.agregarItem(item(1000), PERIODO);
+        reserva.agregarItem(item(500), PERIODO);
         MetodoTraslado traslado = mock(MetodoTraslado.class);
         when(traslado.calcularCosto(reserva)).thenReturn(tasas);
         reserva.elegirTraslado(traslado);
@@ -207,7 +213,7 @@ class ReservaEfectosTest {
     void siElPagoSeRechazaSeLiberanLosCuposYLaReservaSiguePendienteSinNotificar() {
         Reserva reserva = nueva();
         ItemCatalogo a = item(100);
-        reserva.agregarItem(a);
+        reserva.agregarItem(a, PERIODO);
         MetodoPago pago = pago();
         doThrow(new PagoRechazadoException("fondos insuficientes")).when(pago).procesarPago(anyDouble());
         List<String> eventos = new ArrayList<>();
@@ -215,8 +221,8 @@ class ReservaEfectosTest {
 
         assertThrows(PagoRechazadoException.class, () -> reserva.confirmar(pago));
 
-        verify(a).bloquearCupo(1);
-        verify(a).liberarCupo(1);
+        verify(a).reservar(PERIODO, 1);
+        verify(a).liberar(PERIODO, 1);
         assertEquals(NombreEstado.SOLICITUD_PENDIENTE, reserva.getEstado().getNombre());
         assertTrue(reserva.getCobro().isEmpty());
         assertTrue(eventos.isEmpty());
@@ -225,7 +231,7 @@ class ReservaEfectosTest {
     @Test
     void trasUnPagoRechazadoSePuedeReintentarConOtroMetodo() {
         Reserva reserva = nueva();
-        reserva.agregarItem(item(100));
+        reserva.agregarItem(item(100), PERIODO);
         MetodoPago rechazado = pago();
         doThrow(new PagoRechazadoException("rechazado")).when(rechazado).procesarPago(anyDouble());
         assertThrows(PagoRechazadoException.class, () -> reserva.confirmar(rechazado));
@@ -240,7 +246,7 @@ class ReservaEfectosTest {
     @Test
     void sinTrasladoElegidoLasTasasSonCero() {
         Reserva reserva = nueva();
-        reserva.agregarItem(item(1000));
+        reserva.agregarItem(item(1000), PERIODO);
 
         assertTrue(reserva.getMetodoTraslado().isEmpty());
         assertEquals(0, reserva.getTotalTasas(), 0.001);
@@ -296,9 +302,9 @@ class ReservaEfectosTest {
     void elReembolsoDevuelveLoCobradoAunqueDespuesCambienLosPrecios() {
         Reserva reserva = nueva();
         ItemCatalogo hotel = item(1000);
-        reserva.agregarItem(hotel);
+        reserva.agregarItem(hotel, PERIODO);
         enCheckIn(reserva);
-        when(hotel.getPrecioFinal()).thenReturn(5000.0);
+        when(hotel.precioFinal()).thenReturn(5000.0);
 
         reserva.cancelar();
 
@@ -341,7 +347,7 @@ class ReservaEfectosTest {
     @Test
     void unaReservaConUnItemDePrecioCeroSePuedeConfirmar() {
         Reserva reserva = nueva();
-        reserva.agregarItem(item(0));
+        reserva.agregarItem(item(0), PERIODO);
 
         reserva.confirmar(pago());
 

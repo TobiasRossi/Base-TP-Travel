@@ -3,6 +3,7 @@ package com.pepito.reservas.reserva;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
+import static com.pepito.reservas.reserva.ReservaFixture.PERIODO;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -24,12 +25,12 @@ class EstadoReservaTest {
 
     @Test
     void agregarItemSeRechazaPorDefecto() {
-        verificarRechazo("agregar ítem", () -> estado.agregarItem(null, null));
+        verificarRechazo("agregar ítem", () -> estado.agregarItem(null, null, PERIODO));
     }
 
     @Test
     void quitarItemSeRechazaPorDefecto() {
-        verificarRechazo("quitar ítem", () -> estado.quitarItem(null, null));
+        verificarRechazo("quitar ítem", () -> estado.quitarItem(null, null, PERIODO));
     }
 
     @Test

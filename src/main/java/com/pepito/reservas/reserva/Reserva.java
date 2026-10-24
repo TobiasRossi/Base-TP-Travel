@@ -1,8 +1,9 @@
 package com.pepito.reservas.reserva;
  
 import com.pepito.reservas.catalogo.ItemCatalogo;
-import com.pepito.reservas.catalogo.SinCupoException;
+import com.pepito.reservas.catalogo.servicio.Periodo;
 import com.pepito.reservas.cliente.Cliente;
+import com.pepito.reservas.excepciones.DisponibilidadException;
 import com.pepito.reservas.procesadorpago.ComprobantePago;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.procesadorpago.PagoRechazadoException;
@@ -29,7 +30,7 @@ public class Reserva implements OperacionesReserva {
 	private final Cliente cliente;
     private final int cantidadPasajeros;
     private final Clock reloj;
-    private final List<ItemCatalogo> items;
+    private final List<ItemReservado> items;
     private final List<VoucherCredito> vouchers;
     private final List<ReservaObserver> observadores;
     private EstadoReserva estado;
@@ -59,13 +60,13 @@ public class Reserva implements OperacionesReserva {
     /* Operaciones Publicas. Solo delegan en el Estado */
 
     @Override
-    public void agregarItem(ItemCatalogo item) {
-        this.estado.agregarItem(this, item);
+    public void agregarItem(ItemCatalogo item, Periodo periodo) {
+        this.estado.agregarItem(this, item, periodo);
     }
  
     @Override
-    public void quitarItem(ItemCatalogo item) {
-        this.estado.quitarItem(this, item);
+    public void quitarItem(ItemCatalogo item, Periodo periodo) {
+        this.estado.quitarItem(this, item, periodo);
     }
 
     @Override
@@ -122,18 +123,20 @@ public class Reserva implements OperacionesReserva {
     /* Efectos causados por los Estados. La Reserva saber HACER, el Estado CUANDO */
     
     /* El Estado decide CUÁNDO se puede agregar; agregar incluye no aceptar ítems que no pasan su validación (2.1). */
-    void efectivizarAgregadoDeItem(ItemCatalogo item) {
+    void efectivizarAgregadoDeItem(ItemCatalogo item, Periodo periodo) {
         if (!item.validate()) {
             throw new ItemInvalidoException("El ítem no pasa su validación y no se puede agregar a la reserva.");
         }
-        this.items.add(item);
+        this.items.add(new ItemReservado(item, periodo));
     }
  
     /* Quitar un ítem que no está es un error del que llama: se avisa en vez de ignorarlo en silencio. */
-    void efectivizarEliminacionDeItem(ItemCatalogo item) {
-        if (!this.items.remove(item)) {
-            throw new ItemNoIncluidoException("El ítem no forma parte de la reserva.");
-        }
+    void efectivizarEliminacionDeItem(ItemCatalogo item, Periodo periodo) {
+        ItemReservado linea = this.items.stream()
+                .filter(l -> l.corresponde(item, periodo))
+                .findFirst()
+                .orElseThrow(() -> new ItemNoIncluidoException("El ítem no forma parte de la reserva para ese período."));
+        this.items.remove(linea);
     }
 
     void efectivizarEleccionDeTraslado(MetodoTraslado metodoTraslado) {
@@ -153,25 +156,25 @@ public class Reserva implements OperacionesReserva {
     }
 
     /*
-     * Se bloquea una unidad por pasajero en cada ítem.
-     * Todo o nada: si un ítem no tiene Cupo, se liberan los que ya se bloquearon y se relanza.
-     * Cada ítem sabe bloquear su propio Cupo (un Paquete lo propaga a sus partes).
+     * Se bloquea una unidad por pasajero en cada ítem, para las fechas de su línea.
+     * Todo o nada: si un ítem no tiene cupo, se liberan los que ya se bloquearon y se relanza.
+     * Cada ítem sabe reservar su propia Disponibilidad (2.1).
      */
     void bloquearCupos() {
-        List<ItemCatalogo> bloqueados = new ArrayList<>();
+        List<ItemReservado> bloqueados = new ArrayList<>();
         try {
-            for (ItemCatalogo item : this.items) {
-                item.bloquearCupo(this.cantidadPasajeros);
-                bloqueados.add(item);
+            for (ItemReservado linea : this.items) {
+                linea.reservar(this.cantidadPasajeros);
+                bloqueados.add(linea);
             }
-        } catch (SinCupoException e) {
-            bloqueados.forEach(item -> item.liberarCupo(this.cantidadPasajeros));
+        } catch (DisponibilidadException e) {
+            bloqueados.forEach(linea -> linea.liberar(this.cantidadPasajeros));
             throw e;
         }
     }
  
     void liberarCupos() {
-        this.items.forEach(item -> item.liberarCupo(this.cantidadPasajeros));
+        this.items.forEach(linea -> linea.liberar(this.cantidadPasajeros));
     }
 
     /*
@@ -208,7 +211,7 @@ public class Reserva implements OperacionesReserva {
     /* Calculo de montos (actuales: lo que se cobraría si se confirma ahora). Cada pasajero paga una unidad de cada ítem. */
     
     public double getTotalServicios() {
-        return this.items.stream().mapToDouble(ItemCatalogo::getPrecioFinal).sum() * this.cantidadPasajeros;
+        return this.items.stream().mapToDouble(ItemReservado::precioFinal).sum() * this.cantidadPasajeros;
     }
  
     /* Sin traslado elegido no hay tasas. */
@@ -239,7 +242,7 @@ public class Reserva implements OperacionesReserva {
     /* Getters */
     
     public void serviciosDo(Consumer<ItemCatalogo> bloque) {
-        this.items.forEach(bloque);
+        this.items.forEach(linea -> bloque.accept(linea.getItem()));
     }
  
     public EstadoReserva getEstado() {
@@ -254,7 +257,7 @@ public class Reserva implements OperacionesReserva {
         return this.cantidadPasajeros;
     }
  
-    public List<ItemCatalogo> getItems() {
+    public List<ItemReservado> getItems() {
         return Collections.unmodifiableList(this.items);
     }
  

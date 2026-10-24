@@ -1,6 +1,7 @@
 package com.pepito.reservas.reserva;
  
 import com.pepito.reservas.catalogo.ItemCatalogo;
+import com.pepito.reservas.catalogo.servicio.Periodo;
 import com.pepito.reservas.procesadorpago.MetodoPago;
 import com.pepito.reservas.traslado.MetodoTraslado;
  
@@ -23,11 +24,11 @@ public abstract class EstadoReserva {
         return nombre;
     }
  
-    void agregarItem(Reserva reserva, ItemCatalogo item) {
+    void agregarItem(Reserva reserva, ItemCatalogo item, Periodo periodo) {
         throw this.operacionInvalida("agregar ítem");
     }
  
-    void quitarItem(Reserva reserva, ItemCatalogo item) {
+    void quitarItem(Reserva reserva, ItemCatalogo item, Periodo periodo) {
         throw this.operacionInvalida("quitar ítem");
     }
  

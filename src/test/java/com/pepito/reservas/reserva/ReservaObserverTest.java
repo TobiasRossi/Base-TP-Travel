@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.pepito.reservas.reserva.ReservaFixture.PERIODO;
 import static com.pepito.reservas.reserva.ReservaFixture.conItem;
 import static com.pepito.reservas.reserva.ReservaFixture.nueva;
 import static com.pepito.reservas.reserva.ReservaFixture.pago;
@@ -112,7 +113,7 @@ class ReservaObserverTest {
     void agregarOQuitarItemsNoNotificaPorqueNoHayCambioDeEstado() {
         reserva.agregarObservador(registrador("A"));
 
-        reserva.agregarItem(ReservaFixture.item(100));
+        reserva.agregarItem(ReservaFixture.item(100), PERIODO);
 
         assertTrue(eventos.isEmpty());
     }
