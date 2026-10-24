@@ -1,8 +1,10 @@
 package com.pepito.reservas.catalogo.busqueda;
 
-import com.pepito.reservas.catalogo.Categoria;
 import com.pepito.reservas.catalogo.ItemCatalogo;
-import com.pepito.reservas.ubicacion.Ciudad;
+import com.pepito.reservas.catalogo.servicio.Categoria;
+import com.pepito.reservas.destino.Ciudad;
+import com.pepito.reservas.destino.Destino;
+import com.pepito.reservas.destino.TipoGeografico;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -18,12 +20,13 @@ import static org.mockito.Mockito.when;
 
 class CriteriosSimplesTest {
 
-    private static final Ciudad MADRID = new Ciudad("Madrid", "España");
+    private static final Ciudad MADRID = new Ciudad(TipoGeografico.CIUDAD, "Madrid");
+    private static final Ciudad ROMA = new Ciudad(TipoGeografico.CIUDAD, "Roma");
     private static final LocalDate DIA_23 = LocalDate.of(2026, 10, 23);
 
     private ItemCatalogo itemLlamado(String nombre) {
         ItemCatalogo item = mock(ItemCatalogo.class);
-        when(item.getNombre()).thenReturn(nombre);
+        when(item.nombre()).thenReturn(nombre);
         return item;
     }
 
@@ -83,29 +86,35 @@ class CriteriosSimplesTest {
 
     /* PorDisponibilidad */
 
-    @Test
-    void porDisponibilidadCumpleSiElItemEstaDisponibleEnEseDestinoYFecha() {
+    private ItemCatalogo itemEn(Ciudad ciudad, boolean conCupoElDia23) {
         ItemCatalogo item = mock(ItemCatalogo.class);
-        when(item.disponibleEn(MADRID, DIA_23)).thenReturn(true);
-
-        assertTrue(new PorDisponibilidad(DIA_23, MADRID).cumple(item));
+        when(item.getDestino()).thenReturn(ciudad);
+        when(item.disponible(DIA_23, 1)).thenReturn(conCupoElDia23);
+        return item;
     }
 
     @Test
-    void porDisponibilidadNoCumpleSiNoEstaDisponibleEnEseDestinoYFecha() {
-        ItemCatalogo item = mock(ItemCatalogo.class);
-        when(item.disponibleEn(MADRID, DIA_23)).thenReturn(false);
-        when(item.disponibleEn(MADRID, DIA_23.plusDays(1))).thenReturn(true);
-
-        assertFalse(new PorDisponibilidad(DIA_23, MADRID).cumple(item));
+    void porDisponibilidadCumpleSiElItemEstaEnElDestinoYTieneCupoEseDia() {
+        assertTrue(new PorDisponibilidad(DIA_23, MADRID).cumple(itemEn(MADRID, true)));
     }
 
     @Test
-    void porDisponibilidadComparaElDestinoPorValor() {
-        ItemCatalogo item = mock(ItemCatalogo.class);
-        when(item.disponibleEn(MADRID, DIA_23)).thenReturn(true);
+    void porDisponibilidadNoCumpleSiNoHayCupoEseDia() {
+        assertFalse(new PorDisponibilidad(DIA_23, MADRID).cumple(itemEn(MADRID, false)));
+    }
 
-        assertTrue(new PorDisponibilidad(DIA_23, new Ciudad("Madrid", "España")).cumple(item));
+    @Test
+    void porDisponibilidadNoCumpleSiElItemEstaEnOtroDestinoAunqueTengaCupo() {
+        assertFalse(new PorDisponibilidad(DIA_23, MADRID).cumple(itemEn(ROMA, true)));
+    }
+
+    @Test
+    void porDisponibilidadEnUnPaisEncuentraLosItemsDeSusCiudades() {
+        Destino espania = new Destino(TipoGeografico.PAIS, "España");
+        espania.agregarDestino(MADRID);
+
+        assertTrue(new PorDisponibilidad(DIA_23, espania).cumple(itemEn(MADRID, true)));
+        assertFalse(new PorDisponibilidad(DIA_23, espania).cumple(itemEn(ROMA, true)));
     }
 
     /* Ejemplos combinados del enunciado */
@@ -115,7 +124,7 @@ class CriteriosSimplesTest {
         // Nombre contiene "pack" AND NOT categoría = Excursión AND precio <= $25.000
         Categoria excursion = Categoria.EXCURSION;
         ItemCatalogo pack = mock(ItemCatalogo.class);
-        when(pack.getNombre()).thenReturn("Pack Escapada Urbana");
+        when(pack.nombre()).thenReturn("Pack Escapada Urbana");
         when(pack.perteneceA(excursion)).thenReturn(false);
         when(pack.precioBase()).thenReturn(21000.0);
 

@@ -1,29 +1,30 @@
 package com.pepito.reservas.catalogo.busqueda;
 
 import com.pepito.reservas.catalogo.ItemCatalogo;
-import com.pepito.reservas.ubicacion.Ciudad;
+import com.pepito.reservas.destino.LugarGeografico;
 
 import java.time.LocalDate;
 
 /*
  * Leaf: el ítem está en el destino dado y tiene al menos un cupo libre en la fecha dada.
- * Destino y fecha se evalúan JUNTOS en el ítem, no como dos criterios separados (PorDestino AND PorFecha):
- * un paquete con un hotel en Madrid sin cupo y un tour en Roma con cupo pasaría ambos por separado
- * sin estar disponible en Madrid. Quién combina las dos condiciones lo decide cada ítem.
+ * El destino es un LugarGeografico (2.1): continente, país o ciudad. Buscar en "España"
+ * encuentra los ítems de Madrid, porque España contiene a Madrid (destino.contiene).
+ * Destino y fecha se evalúan juntos en el mismo criterio: separarlos en dos criterios
+ * (PorDestino AND PorFecha) daría por bueno un ítem que está en el destino pero sin cupo ese día.
  */
 
 public class PorDisponibilidad implements CriterioBusqueda {
 
     private final LocalDate fecha;
-    private final Ciudad destino;
+    private final LugarGeografico destino;
 
-    public PorDisponibilidad(LocalDate fecha, Ciudad destino) {
+    public PorDisponibilidad(LocalDate fecha, LugarGeografico destino) {
         this.fecha = fecha;
         this.destino = destino;
     }
 
     @Override
     public boolean cumple(ItemCatalogo item) {
-        return item.disponibleEn(this.destino, this.fecha);
+        return this.destino.contiene(item.getDestino()) && item.disponible(this.fecha, 1);
     }
 }

@@ -18,6 +18,6 @@ public class PorNombre implements CriterioBusqueda {
 
     @Override
     public boolean cumple(ItemCatalogo item) {
-        return item.getNombre().toLowerCase(Locale.ROOT).contains(this.texto);
+        return item.nombre().toLowerCase(Locale.ROOT).contains(this.texto);
     }
 }
