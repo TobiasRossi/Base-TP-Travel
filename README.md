@@ -72,7 +72,6 @@ C:.
     │   │               ├───catalogo
     │   │               │   │   Catalogo.java
     │   │               │   │   ItemCatalogo.java
-    │   │               │   │   SinCupoException.java
     │   │               │   │
     │   │               │   └───busqueda
     │   │               │           CriterioBusqueda.java
@@ -82,28 +81,22 @@ C:.
     │   │               │
     │   │               ├───notificador
     │   │               ├───procesadorpago
-    │   │               │       ComprobantePago.java
-    │   │               │       MetodoPago.java
-    │   │               │       PagoRechazadoException.java
-    │   │               │
     │   │               ├───reporte
     │   │               ├───reserva
-    │   │               │   │   Reserva.java                 (Context del State, Subject del Observer)
-    │   │               │   │   OperacionesReserva.java
-    │   │               │   │   RegistroReservas.java
-    │   │               │   │   Cobro.java
+    │   │               │   │   GestorReservas.java
+    │   │               │   │   Reserva.java
     │   │               │   │   VoucherCredito.java
-    │   │               │   │   EstadoReserva.java           (State; los estados concretos van en el
-    │   │               │   │   SolicitudPendiente.java       mismo paquete para que sus operaciones
-    │   │               │   │   Confirmada.java               sean package-private)
-    │   │               │   │   EnCheckIn.java
-    │   │               │   │   EnCurso.java
-    │   │               │   │   Finalizada.java
-    │   │               │   │   Cancelada.java
-    │   │               │   │   NombreEstado.java
-    │   │               │   │   ReservaException.java        (+ OperacionInvalida, ReservaVacia,
-    │   │               │   │                                   ItemInvalido, ItemNoIncluido,
-    │   │               │   │                                   CantidadPasajerosInvalida)
+    │   │               │   │
+    │   │               │   ├───estado
+    │   │               │   │       Cancelada.java
+    │   │               │   │       CheckIn.java
+    │   │               │   │       Confirmada.java
+    │   │               │   │       EnCurso.java
+    │   │               │   │       EstadoReserva.java
+    │   │               │   │       Finalizada.java
+    │   │               │   │       MetodoInvalidoException.java
+    │   │               │   │       NombreEstado.java
+    │   │               │   │       SolicitudPendiente.java
     │   │               │   │
     │   │               │   └───suscriptor
     │   │               │           ReservaObserver.java
@@ -116,8 +109,6 @@ C:.
     │   │               │
     │   │               └───traslado
     │   │                       MetodoTraslado.java
-    │   │                       SinTraslado.java
-    │   │                       TrasladoNoDisponibleException.java
     │   │
     │   └───resources
     └───test
@@ -144,12 +135,4 @@ _Se va completando a medida que avanza el diseño._
 
 | Módulo | Decisión | Problema que resuelve | Alternativa descartada |
 |--------|----------|-----------------------|------------------------|
-| 2.2 | Patrón **State**: `Reserva` (Context) delega cada operación en `EstadoReserva` (State); cada estado concreto (ConcreteState) redefine solo las operaciones que le son válidas y el resto lanza `OperacionInvalidaException` | Agregar o cambiar un estado no obliga a tocar las demás operaciones; no hay `if`/`switch` sobre el estado | Un `enum` de estados con `switch` en cada operación de `Reserva` |
-| 2.2 | Los estados viven en el mismo paquete que `Reserva` y sus operaciones (y los efectos de `Reserva` que invocan) son package-private | Desde afuera solo se puede usar `OperacionesReserva`: nadie puede forzar una transición ni ejecutar un efecto fuera de lugar | Subpaquete `estado` con todo público, confiando en que nadie lo use mal |
-| 2.2 | La Reserva sabe **hacer** (bloquear cupos, cobrar, generar vouchers); el Estado decide **cuándo** | Cada estado se lee como la regla del enunciado y la lógica no se duplica entre estados | Que cada estado manipule directamente las colecciones de la Reserva |
-| 2.2 | Pago dentro de `confirmar(MetodoPago)`; orden: ítems → traslado → cupos → cobro → transición | La reserva no queda pagada sin cupo ni con cupos bloqueados sin pago; si algo falla, se deshace y no se notifica | Cobrar primero y devolver la plata si no hay cupo |
-| 2.2 | Bloqueo de cupos todo-o-nada, una unidad por pasajero | Si un ítem no tiene cupo, se liberan los ya bloqueados; una reserva de N pasajeros consume y paga N unidades | Bloquear ítem por ítem sin rollback; una unidad por ítem sin importar los pasajeros |
-| 2.2 | `Cobro` inmutable (montos, comprobante, fecha con `Clock` inyectable) | Reembolsos, factura y reportes usan lo que efectivamente se pagó y cuándo, aunque después cambien los precios | Recalcular con precios actuales al cancelar |
-| 2.2 | `SinTraslado` (**Null Object**) como traslado por defecto | Elimina el `null` y el `if` en el cálculo de tasas | `metodoTraslado == null ? 0 : …` |
-| 2.2 | Excepciones de dominio propias bajo `ReservaException` (`OperacionInvalida`, `ReservaVacia`, `ItemInvalido`, `ItemNoIncluido`, `CantidadPasajerosInvalida`) | El que llama puede distinguir y atrapar errores del dominio; el mensaje explica qué regla se violó | `RuntimeException` / `IllegalStateException` genéricas o devolver `null` |
-| 2.2/2.5 | Patrón **Observer**: `Reserva` (Subject) notifica a cada `ReservaObserver` con estado anterior y nuevo; un observer por subsistema; `RegistroReservas` los suscribe a cada reserva | Agregar subsistemas sin tocar `Reserva` ni a los demás (OCP); la Reserva no los conoce | Un único observer que hace todo, o que `Reserva` llame directamente a mail, factura y club |
+| _—_ | _—_ | _—_ | _—_ |

@@ -1,23 +1,35 @@
 package com.pepito.reservas.catalogo;
 
-import com.pepito.reservas.servicio.Validador;
+import com.pepito.reservas.catalogo.servicio.Disponibilidad;
+import com.pepito.reservas.catalogo.servicio.Periodo;
+import com.pepito.reservas.destino.LugarGeografico;
 
-public interface ItemCatalogo extends Validador {
+import java.time.LocalDate;
 
-    public Double precioBase();
-    public Double descuento();
-    public Double preciFinal();
+public abstract class ItemCatalogo implements Validador {
 
-    @Override
-    public Boolean validate();
-    
-    double getPrecioFinal();
+    protected String nombre;
+    protected Double descuento;
+    protected Disponibilidad disponibilidad;
+    protected LugarGeografico destino;
 
-    /* Cupos: los usa la Reserva al confirmar/cancelar. Un Paquete los propaga a sus ítems. */
 
-    /* Bloquea "cantidad" unidades (una por pasajero). Lanza SinCupoException si hay menos disponibles. */
-    void bloquearCupo(int cantidad);
+    public ItemCatalogo(String nombre, Double descuento, Disponibilidad disponibilidad, LugarGeografico destino) {
+        this.nombre = nombre;
+        this.descuento = descuento;
+        this.disponibilidad = disponibilidad;
+        this.destino = destino;
+    }
 
-    void liberarCupo(int cantidad);
+    public abstract Double precioBase();
+    public abstract Double descuento();
+    public abstract Double precioFinal();
+    public abstract void reservar(Periodo fechas, Integer cantidad);
+    public abstract void reservar(LocalDate fecha, Integer cantidad);
+    public abstract Disponibilidad disponibilidad();
 
+    // Pre-implementados (comunes a todos)
+    public Boolean cubre(Periodo periodo) {return disponibilidad.cubre(periodo);}
+    public String nombre(){return nombre;}
+    public LugarGeografico getDestino() {return destino;}
 }
